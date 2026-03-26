@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Создание ИИ продавцов</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --grad-bg: linear-gradient(135deg, #0a0a0f 0%, #0f0c29 40%, #1a0533 70%, #0d0d1a 100%);
+      --grad-text: linear-gradient(90deg, #a78bfa, #818cf8, #38bdf8);
+      --grad-btn: linear-gradient(90deg, #7c3aed, #4f46e5, #0ea5e9);
+      --card-bg: rgba(255,255,255,0.04);
+      --card-border: rgba(167,139,250,0.18);
+      --text-main: #f1f5f9;
+      --text-sub: #94a3b8;
+      --accent: #a78bfa;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--grad-bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── GLOWING ORBS ── */
+    .orb {
+      position: fixed; border-radius: 50%;
+      filter: blur(80px); opacity: 0.18; pointer-events: none; z-index: 0;
+    }
+    .orb-1 { width: 500px; height: 500px; background: #7c3aed; top: -150px; left: -150px; animation: drift 14s ease-in-out infinite alternate; }
+    .orb-2 { width: 400px; height: 400px; background: #0ea5e9; bottom: -100px; right: -100px; animation: drift 18s ease-in-out infinite alternate-reverse; }
+    .orb-3 { width: 300px; height: 300px; background: #a78bfa; top: 50%; left: 50%; transform: translate(-50%,-50%); animation: drift 10s ease-in-out infinite alternate; }
+    @keyframes drift { 0% { transform: translate(0,0); } 100% { transform: translate(40px, 30px); } }
+    .orb-3 { animation: drift3 12s ease-in-out infinite alternate; }
+    @keyframes drift3 { 0% { transform: translate(-50%,-50%); } 100% { transform: translate(calc(-50% + 30px), calc(-50% - 25px)); } }
+
+    /* ── WRAPPER ── */
+    .wrapper { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 80px 0 60px;
+      gap: 0;
+    }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(167,139,250,0.12);
+      border: 1px solid rgba(167,139,250,0.3);
+      border-radius: 100px; padding: 6px 18px;
+      font-size: 13px; color: var(--accent); font-weight: 500;
+      margin-bottom: 32px; letter-spacing: 0.5px;
+      animation: fadeUp 0.7s ease both;
+    }
+    .badge svg { width: 14px; height: 14px; }
+
+    h1 {
+      font-size: clamp(2.4rem, 7vw, 4.4rem);
+      font-weight: 800; line-height: 1.1; letter-spacing: -1.5px;
+      background: var(--grad-text);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 24px;
+      animation: fadeUp 0.8s 0.1s ease both;
+    }
+
+    .hero-desc {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: var(--text-sub); max-width: 560px;
+      line-height: 1.7; margin-bottom: 48px;
+      animation: fadeUp 0.8s 0.2s ease both;
+    }
+
+    /* ── CTA BUTTON ── */
+    .cta-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; animation: fadeUp 0.8s 0.3s ease both; }
+
+    .btn-cta {
+      position: relative; display: inline-flex; align-items: center; gap: 10px;
+      background: var(--grad-btn);
+      color: #fff; font-size: 1.05rem; font-weight: 700;
+      padding: 18px 44px; border: none; border-radius: 50px;
+      cursor: pointer; text-decoration: none;
+      box-shadow: 0 0 30px rgba(124,58,237,0.5), 0 0 60px rgba(124,58,237,0.2);
+      animation: pulse-btn 2.4s ease-in-out infinite;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-cta:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 0 50px rgba(124,58,237,0.7), 0 0 90px rgba(14,165,233,0.3); }
+    .btn-cta svg { width: 20px; height: 20px; }
+
+    @keyframes pulse-btn {
+      0%, 100% { box-shadow: 0 0 30px rgba(124,58,237,0.5), 0 0 60px rgba(124,58,237,0.2); }
+      50%        { box-shadow: 0 0 50px rgba(124,58,237,0.8), 0 0 100px rgba(14,165,233,0.4), 0 0 6px #fff2; }
+    }
+
+    .tg-link {
+      color: var(--accent); font-size: 0.95rem; text-decoration: none;
+      opacity: 0.75; transition: opacity 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .tg-link:hover { opacity: 1; }
+    .tg-link svg { width: 16px; height: 16px; }
+
+    /* ── SCROLL INDICATOR ── */
+    .scroll-hint { margin-top: 56px; animation: bounce 2s ease-in-out infinite; color: var(--text-sub); opacity: 0.45; }
+    .scroll-hint svg { width: 28px; height: 28px; }
+    @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+
+    /* ── SECTION LABEL ── */
+    .section-label {
+      text-align: center; font-size: 0.8rem; font-weight: 600;
+      letter-spacing: 3px; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 14px;
+    }
+    .section-title {
+      text-align: center; font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 800; margin-bottom: 14px; letter-spacing: -0.5px;
+    }
+    .section-sub { text-align: center; color: var(--text-sub); font-size: 1rem; line-height: 1.7; max-width: 560px; margin: 0 auto 56px; }
+
+    /* ── CARDS ── */
+    section { padding: 80px 0; }
+
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    @media (max-width: 700px) { .cards { grid-template-columns: 1fr; } }
+    @media (min-width: 500px) and (max-width: 700px) { .cards { grid-template-columns: 1fr 1fr; } }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px; padding: 32px 26px;
+      transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+      position: relative; overflow: hidden;
+    }
+    .card::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--grad-text); opacity: 0;
+      transition: opacity 0.3s; border-radius: inherit;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+      padding: 1px;
+    }
+    .card:hover { transform: translateY(-6px); box-shadow: 0 20px 60px rgba(124,58,237,0.2); border-color: rgba(167,139,250,0.4); }
+
+    .card-icon {
+      width: 52px; height: 52px; border-radius: 14px;
+      background: rgba(124,58,237,0.18);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 20px;
+    }
+    .card-icon svg { width: 26px; height: 26px; }
+
+    .card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 10px; }
+    .card p { color: var(--text-sub); font-size: 0.93rem; line-height: 1.65; }
+
+    /* ── FOR WHOM ── */
+    .for-whom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 600px) { .for-whom-grid { grid-template-columns: 1fr; } }
+
+    .fw-item {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 16px; padding: 26px 22px;
+      display: flex; align-items: flex-start; gap: 16px;
+      transition: transform 0.3s;
+    }
+    .fw-item:hover { transform: translateY(-4px); }
+    .fw-icon { flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; background: rgba(14,165,233,0.15); display: flex; align-items: center; justify-content: center; }
+    .fw-icon svg { width: 22px; height: 22px; }
+    .fw-item h4 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .fw-item p { color: var(--text-sub); font-size: 0.88rem; line-height: 1.6; }
+
+    /* ── BENEFIT STRIP ── */
+    .benefit-strip {
+      background: rgba(124,58,237,0.08);
+      border: 1px solid rgba(124,58,237,0.2);
+      border-radius: 20px; padding: 40px 36px;
+      display: flex; flex-wrap: wrap; gap: 28px;
+      justify-content: space-around; align-items: center;
+      margin-top: 64px;
+    }
+    .stat { text-align: center; }
+    .stat-num {
+      font-size: 2.4rem; font-weight: 800;
+      background: var(--grad-text); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .stat-label { color: var(--text-sub); font-size: 0.85rem; margin-top: 4px; }
+
+    /* ── FOOTER CTA ── */
+    .footer-cta {
+      text-align: center; padding: 80px 0 100px;
+    }
+    .footer-cta h2 {
+      font-size: clamp(1.8rem, 5vw, 3rem); font-weight: 800; letter-spacing: -1px;
+      margin-bottom: 20px;
+      background: var(--grad-text); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .footer-cta p { color: var(--text-sub); font-size: 1rem; margin-bottom: 40px; line-height: 1.7; }
+
+    /* ── DIVIDER ── */
+    .divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(167,139,250,0.2), transparent); margin: 0; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .reveal { opacity: 0; transform: translateY(30px); transition: opacity 0.7s ease, transform 0.7s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- BACKGROUND -->
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<!-- ══ HERO ══ -->
+<div class="wrapper">
+  <section class="hero">
+    <div class="badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Революция в продажах
+    </div>
+
+    <h1>Создание<br>ИИ продавцов</h1>
+
+    <p class="hero-desc">
+      ИИ&nbsp;продавец, который работает&nbsp;24/7, экономит ваше время
+      и&nbsp;кратно повышает эффективность&nbsp;— без усталости и&nbsp;ошибок.
+    </p>
+
+    <div class="cta-wrap">
+      <a href="https://t.me/imww88" target="_blank" class="btn-cta">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Начать прямо сейчас
+      </a>
+      <a href="https://t.me/imww88" target="_blank" class="tg-link">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248-2.04 9.61c-.154.683-.556.85-1.127.527l-3.112-2.293-1.5 1.443c-.166.166-.305.305-.625.305l.222-3.168 5.79-5.233c.25-.222-.056-.346-.39-.124L7.126 14.4l-3.06-.956c-.666-.208-.68-.666.138-.985l11.952-4.607c.556-.2 1.042.124.406.396z"/></svg>
+        @imww88
+      </a>
+    </div>
+
+    <div class="scroll-hint">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    </div>
+  </section>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══ ПРЕИМУЩЕСТВА ══ -->
+<div class="wrapper">
+  <section>
+    <div class="reveal">
+      <p class="section-label">Преимущества</p>
+      <h2 class="section-title">Почему ИИ продавец&nbsp;— это сила</h2>
+      <p class="section-sub">Три причины, почему наш продукт меняет правила игры</p>
+    </div>
+
+    <div class="cards">
+      <!-- Карточка 1 -->
+      <div class="card reveal">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <h3>Круто</h3>
+        <p>Технология нового поколения, которая производит впечатление на каждого клиента. Ваши продажи начинают выглядеть по-настоящему круто и&nbsp;современно.</p>
+      </div>
+
+      <!-- Карточка 2 -->
+      <div class="card reveal">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <h3>Мощно</h3>
+        <p>Обрабатывает сотни запросов одновременно, никогда не устаёт и&nbsp;не делает ошибок. Мощность промышленного уровня в&nbsp;вашем бизнесе.</p>
+      </div>
+
+      <!-- Карточка 3 -->
+      <div class="card reveal">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 0 0 1.946-.806 3.42 3.42 0 0 1 4.438 0 3.42 3.42 0 0 0 1.946.806 3.42 3.42 0 0 1 3.138 3.138 3.42 3.42 0 0 0 .806 1.946 3.42 3.42 0 0 1 0 4.438 3.42 3.42 0 0 0-.806 1.946 3.42 3.42 0 0 1-3.138 3.138 3.42 3.42 0 0 0-1.946.806 3.42 3.42 0 0 1-4.438 0 3.42 3.42 0 0 0-1.946-.806 3.42 3.42 0 0 1-3.138-3.138 3.42 3.42 0 0 0-.806-1.946 3.42 3.42 0 0 1 0-4.438 3.42 3.42 0 0 0 .806-1.946 3.42 3.42 0 0 1 3.138-3.138z"/></svg>
+        </div>
+        <h3>Очень круто&nbsp;))</h3>
+        <p>Это не просто инструмент — это конкурентное преимущество. Клиенты восхищаются, коллеги завидуют, а&nbsp;вы просто наблюдаете за ростом прибыли.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══ ДЛЯ КОГО ══ -->
+<div class="wrapper">
+  <section>
+    <div class="reveal">
+      <p class="section-label">Для кого</p>
+      <h2 class="section-title">Кому подходит этот продукт</h2>
+      <p class="section-sub">ИИ&nbsp;продавец создан для тех, кто хочет масштабироваться без раздутого штата</p>
+    </div>
+
+    <div class="for-whom-grid reveal">
+      <div class="fw-item">
+        <div class="fw-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div>
+          <h4>Малый и средний бизнес</h4>
+          <p>Получите отдел продаж уровня корпорации без найма команды. Один ИИ заменяет несколько менеджеров.</p>
+        </div>
+      </div>
+
+      <div class="fw-item">
+        <div class="fw-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </div>
+        <div>
+          <h4>Онлайн-предприниматели</h4>
+          <p>Автоматизируйте продажи в&nbsp;соцсетях, мессенджерах и&nbsp;на сайте. Работайте пока ИИ продаёт за вас.</p>
+        </div>
+      </div>
+
+      <div class="fw-item">
+        <div class="fw-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div>
+          <h4>Стартапы</h4>
+          <p>Масштабируйтесь быстрее конкурентов с&nbsp;минимальными затратами. Ресурсы — на продукт, продажи — на ИИ.</p>
+        </div>
+      </div>
+
+      <div class="fw-item">
+        <div class="fw-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </div>
+        <div>
+          <h4>Фрилансеры и эксперты</h4>
+          <p>Продавайте свои услуги и&nbsp;курсы автоматически. Фокусируйтесь на работе, а&nbsp;не на переговорах.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="benefit-strip reveal">
+      <div class="stat">
+        <div class="stat-num">×3</div>
+        <div class="stat-label">рост конверсии</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">24/7</div>
+        <div class="stat-label">без выходных</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">−70%</div>
+        <div class="stat-label">затрат на персонал</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">∞</div>
+        <div class="stat-label">масштабируемость</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══ FOOTER CTA ══ -->
+<div class="wrapper">
+  <div class="footer-cta reveal">
+    <h2>Готовы запустить<br>своего ИИ продавца?</h2>
+    <p>Присоединяйтесь к&nbsp;предпринимателям, которые уже автоматизировали продажи.<br>Напишите нам — запустим вместе.</p>
+
+    <div class="cta-wrap">
+      <a href="https://t.me/imww88" target="_blank" class="btn-cta">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Написать и начать
+      </a>
+      <a href="https://t.me/imww88" target="_blank" class="tg-link">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248-2.04 9.61c-.154.683-.556.85-1.127.527l-3.112-2.293-1.5 1.443c-.166.166-.305.305-.625.305l.222-3.168 5.79-5.233c.25-.222-.056-.346-.39-.124L7.126 14.4l-3.06-.956c-.666-.208-.68-.666.138-.985l11.952-4.607c.556-.2 1.042.124.406.396z"/></svg>
+        @imww88
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Reveal on scroll
+  const observer = new IntersectionObserver(
+    entries => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } }),
+    { threshold: 0.12 }
+  );
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
