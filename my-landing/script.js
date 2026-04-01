@@ -1,22 +1,3 @@
-// ===== KINETIC TYPOGRAPHY =====
-const words = ['сайты', 'приложения', 'AI-агентов'];
-let wordIndex = 0;
-const el = document.getElementById('heroChanging');
-
-function changeWord() {
-  el.style.opacity = '0';
-  el.style.transform = 'translateY(-10px)';
-  setTimeout(() => {
-    wordIndex = (wordIndex + 1) % words.length;
-    el.textContent = words[wordIndex];
-    el.style.transition = 'opacity 0.4s, transform 0.4s';
-    el.style.opacity = '1';
-    el.style.transform = 'translateY(0)';
-  }, 300);
-}
-
-el.style.transition = 'opacity 0.4s, transform 0.4s';
-setInterval(changeWord, 2500);
 
 // ===== SCROLL ANIMATIONS =====
 const observer = new IntersectionObserver((entries) => {
